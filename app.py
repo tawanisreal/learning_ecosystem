@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-API_URL = "https://script.google.com/macros/s/AKfycbzqSVvrWItgNP2kCloot03ODDF70VCKxnOE0CSh20G7_K2JqmdLflZu-J4lOwPL6tom/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbzr050WTPL898ERcPwGDNuiKM3BRcsMk8sYzqJVBMK4grJAvICnoFesL-ZiSeT4-xf6/exec"
 
 st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
