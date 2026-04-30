@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 
 # URL ของ Web App จาก Google Apps Script
-API_URL = "https://script.google.com/macros/s/AKfycbwRBd6G5BAKuV-QeTFd4Zi0WDFwEHjGvwE3vBDi5qHj3m1QK1a_9CMeo__IjkKmjCYc/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbwtaTfO7oV14LjnAp-8fzu2y-k-aNk2izzonUPR4Zb9bO9-F_wkn_7S1FsTSHrcih8t/exec"
 
 st.set_page_config(page_title="ICT Assignment Pro", layout="wide", page_icon="🎓")
 
