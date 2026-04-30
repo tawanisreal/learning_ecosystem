@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 
 # URL ของ Web App จาก Google Apps Script
-API_URL = "https://script.google.com/macros/s/AKfycbwtaTfO7oV14LjnAp-8fzu2y-k-aNk2izzonUPR4Zb9bO9-F_wkn_7S1FsTSHrcih8t/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbzqSVvrWItgNP2kCloot03ODDF70VCKxnOE0CSh20G7_K2JqmdLflZu-J4lOwPL6tom/exec"
 
 st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
