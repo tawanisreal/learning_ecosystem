@@ -60,12 +60,12 @@ if not data.empty:
     with col_m1:
         st.metric("งานที่ค้างอยู่", f"{waiting_count} รายการ")
     with col_m2:
-        filter_status = st.radio("มุมมองข้อมูล:", options=["Waiting Only⏳", "Completed Only✅", "All Tasks🗃️"], horizontal=True)
+        filter_status = st.radio("มุมมองข้อมูล:", options=["⏳ Waiting Only", "✅ Completed Only", "🗃️ All Tasks"], horizontal=True)
 
     display_df = data.copy()
-    if filter_status == "Waiting Only⏳":
+    if filter_status == "⏳ Waiting Only":
         display_df = display_df[display_df['Status'] == 'Waiting']
-    elif filter_status == "Completed Only✅":
+    elif filter_status == "✅ Completed Only":
         display_df = display_df[display_df['Status'] == 'Complete']
 
     st.subheader("📋 รายการงานปัจจุบัน")
