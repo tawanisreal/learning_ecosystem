@@ -8,12 +8,12 @@ API_URL = "https://script.google.com/macros/s/AKfycbwtaTfO7oV14LjnAp-8fzu2y-k-aN
 
 st.set_page_config(page_title="ICT Assignment Pro", layout="wide", page_icon="🎓")
 
-# --- Custom CSS (Modern Look) ---
+# --- Custom CSS (ปรับปรุงเพื่อรองรับ Dark Mode) ---
 st.markdown("""
     <style>
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { background-color: #eeeeee; border-radius: 5px; padding: 10px; }
+    .stMetric { padding: 15px; border-radius: 10px; border: 1px solid #444; }
+    /* ปรับแต่งหัวตารางให้ชัดเจน */
+    thead th { background-color: #222 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -22,20 +22,24 @@ def get_all_data():
         response = requests.get(API_URL)
         if response.status_code == 200:
             res = response.json()
-            # แยกข้อมูลงานออกมาเป็น DataFrame
+            # 1. จัดการข้อมูลงาน
             df = pd.DataFrame(res.get("tasks", []))
             if not df.empty and 'Deadline' in df.columns:
                 df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%y')
             
-            # ดึงรายชื่อวิชาจากแผ่นงาน Subject
-            subjects = res.get("subjects", [])
-            # ตัดหัวตารางออกถ้าใน Sheet "Subject" มีหัวข้อ (เช่น แถวแรกชื่อ 'รายชื่อวิชา')
-            if subjects and subjects[0] == "Subject": 
+            # 2. จัดการข้อมูลวิชา (ดึงจากก้อน subjects ที่ส่งมาจาก Apps Script)
+            subjects = res.get("subject", [])
+            # ลบหัวข้อคอลัมน์ "Subject" ออกถ้ามี
+            if subjects and (subjects[0] == "Subject" or subjects[0] == "วิชา"):
                 subjects = subjects[1:]
+            
+            # กรองค่าว่างและเรียงลำดับ
+            subjects = sorted([str(s).strip() for s in subjects if s])
                 
             return df, subjects
         return pd.DataFrame(), []
-    except:
+    except Exception as e:
+        st.error(f"การดึงข้อมูลผิดพลาด: {e}")
         return pd.DataFrame(), []
 
 def send_action(payload):
@@ -47,12 +51,8 @@ def send_action(payload):
 # --- START UI ---
 st.title("🎓 ICT Assignment Tracker")
 
+# ดึงข้อมูลใหม่ทุกครั้งที่รัน
 data, subjects_list = get_all_data()
-
-# ดึงรายชื่อวิชาที่มีอยู่แล้วมาทำ Dropdown
-subjects_list = []
-if not data.empty and 'Subject' in data.columns:
-    subjects_list = sorted(data['Subject'].unique().tolist())
 
 if not data.empty:
     waiting_count = len(data[data['Status'] == 'waiting'])
@@ -70,15 +70,19 @@ if not data.empty:
 
     st.subheader("📋 รายการงานปัจจุบัน")
     
+    # ฟังก์ชันกำหนดสีตัวอักษรแทนการใช้พื้นหลัง (แก้ปัญหา Dark Mode)
     def style_status(val):
-        if val == 'complete': return 'background-color: #d4edda; color: #155724;'
-        elif val == 'waiting': return 'background-color: #fff3cd; color: #856404;'
+        if val == 'complete': 
+            return 'color: #28a745; font-weight: bold;' # สีเขียว (ตัวหนังสือ)
+        elif val == 'waiting': 
+            return 'color: #ffc107; font-weight: bold;' # สีเหลือง (ตัวหนังสือ)
         return ''
 
+    # ใช้ .map แทน .applymap สำหรับ Pandas รุ่นใหม่
     styled_df = display_df.style.map(style_status, subset=['Status'])
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
 else:
-    st.info("ยังไม่มีข้อมูลในระบบ")
+    st.info("ยังไม่มีข้อมูลในระบบ หรือกำลังเชื่อมต่อข้อมูล...")
 
 st.divider()
 
@@ -89,43 +93,55 @@ with tab_add:
     with st.form("add_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
         with c1:
-            t = st.text_input("ชื่องาน")
-            # เลือกวิชาจากที่มีอยู่ หรือพิมพ์ใหม่
-            s = st.selectbox("เลือกวิชา", options=["-- เพิ่มวิชาใหม่ --"] + subjects_list)
-            if s == "-- เพิ่มวิชาใหม่ --":
-                s = st.text_input("พิมพ์ชื่อวิชาใหม่")
+            t = st.text_input("ชื่องาน", placeholder="เช่น เขียนโปรแกรม Python")
+            # Dropdown วิชาที่ดึงมาจากชีท Subject โดยตรง
+            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่พบรายชื่อวิชา --"])
         with c2:
             d = st.date_input("กำหนดส่ง", datetime.now())
         
-        if st.form_submit_button("บันทึก"):
-            if t and s:
+        if st.form_submit_button("บันทึกข้อมูล"):
+            if t and s and s != "-- ไม่พบรายชื่อวิชา --":
                 send_action({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y")})
+                st.success(f"บันทึกงาน '{t}' สำเร็จ!")
                 st.rerun()
+            else:
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
 
 with tab_edit:
     if not data.empty:
         edit_target = st.selectbox("เลือกงานที่จะแก้ไข:", data['Task'].tolist(), key="edit_box")
         row = data[data['Task'] == edit_target].iloc[0]
+        
         with st.form("edit_form"):
             col_e1, col_e2 = st.columns(2)
             with col_e1:
-                new_t = st.text_input("ชื่อภารกิจ", value=row['Task'])
-                # สำหรับการแก้ไขก็ให้เลือกวิชาได้เช่นกัน
-                new_s = st.selectbox("วิชา", options=subjects_list, index=subjects_list.index(row['Subject']) if row['Subject'] in subjects_list else 0)
+                new_t = st.text_input("แก้ไขชื่องาน", value=row['Task'])
+                # เลือกวิชาจาก List เดิม
+                current_subject_idx = subjects_list.index(row['Subject']) if row['Subject'] in subjects_list else 0
+                new_s = st.selectbox("วิชา", options=subjects_list, index=current_subject_idx)
             with col_e2:
                 try:
                     curr_d = datetime.strptime(str(row['Deadline']), "%d/%m/%y")
                 except:
                     curr_d = datetime.now()
-                new_d = st.date_input("กำหนดส่งใหม่", value=curr_d)
+                new_d = st.date_input("แก้ไขวันส่ง", value=curr_d)
                 new_st = st.selectbox("สถานะ", ["waiting", "complete"], index=0 if row['Status'] == 'waiting' else 1)
-            if st.form_submit_button("อัปเดต"):
-                send_action({"action": "update", "old_task": edit_target, "task": new_t, "subject": new_s, "deadline": new_d.strftime("%d/%m/%Y"), "status": new_st})
+            
+            if st.form_submit_button("ยืนยันการแก้ไข"):
+                send_action({
+                    "action": "update", 
+                    "old_task": edit_target,
+                    "task": new_t, 
+                    "subject": new_s, 
+                    "deadline": new_d.strftime("%d/%m/%Y"),
+                    "status": new_st
+                })
+                st.success("อัปเดตข้อมูลเรียบร้อย!")
                 st.rerun()
 
 with tab_del:
     if not data.empty:
         del_target = st.selectbox("เลือกงานที่จะลบ:", data['Task'].tolist(), key="del_box")
-        if st.button("🔥 ลบรายการ", type="primary"):
+        if st.button("🔥 ลบรายการนี้ถาวร", type="primary"):
             send_action({"action": "delete", "task": del_target})
             st.rerun()
