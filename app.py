@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 
 # วาง URL ที่ได้จาก Google Apps Script ตรงนี้
-API_URL = "https://script.google.com/macros/s/AKfycbwRMQZI8gTCvlQcHNgn-VDC9qma16iARVvY0bit6DP-ALqYtwf7szLgc_yaNMfA0G8/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbzCrQzdQp7WMEZ1OTPOSf2mbJJjz25vKF7pwv4BebL3I2Fzcu7N2bqvXz77wY2m7PHv/exec"
 
 st.set_page_config(page_title="Assignment Tracker", layout="wide")
 
