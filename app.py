@@ -6,7 +6,7 @@ from datetime import datetime
 # URL ของ Web App จาก Google Apps Script
 API_URL = "https://script.google.com/macros/s/AKfycbwtaTfO7oV14LjnAp-8fzu2y-k-aNk2izzonUPR4Zb9bO9-F_wkn_7S1FsTSHrcih8t/exec"
 
-st.set_page_config(page_title="ICT Assignment Pro", layout="wide", page_icon="🎓")
+st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
 # --- Custom CSS (ปรับปรุงเพื่อรองรับ Dark Mode) ---
 st.markdown("""
@@ -60,12 +60,12 @@ if not data.empty:
     with col_m1:
         st.metric("งานที่ค้างอยู่", f"{waiting_count} รายการ")
     with col_m2:
-        filter_status = st.radio("มุมมองข้อมูล:", options=["Waiting Only", "Completed Only", "All Tasks"], horizontal=True)
+        filter_status = st.radio("มุมมองข้อมูล:", options=["Waiting Only⏳", "Completed Only✅", "All Tasks🗃️"], horizontal=True)
 
     display_df = data.copy()
-    if filter_status == "Waiting Only":
+    if filter_status == "Waiting Only⏳":
         display_df = display_df[display_df['Status'] == 'Waiting']
-    elif filter_status == "Completed Only":
+    elif filter_status == "Completed Only✅":
         display_df = display_df[display_df['Status'] == 'Complete']
 
     st.subheader("📋 รายการงานปัจจุบัน")
@@ -93,7 +93,7 @@ with tab_add:
     with st.form("add_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
         with c1:
-            t = st.text_input("ชื่องาน", placeholder="เช่น เขียนโปรแกรม Python")
+            t = st.text_input("ชื่องาน", placeholder="ระบุชื่องาน หรือรายละเอียด")
             # Dropdown วิชาที่ดึงมาจากชีท Subject โดยตรง
             s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่พบรายชื่อวิชา --"])
         with c2:
