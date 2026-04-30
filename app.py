@@ -15,7 +15,7 @@ st.markdown("""
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; }
     .stDataFrame { border-radius: 10px; overflow: hidden; }
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True) # ✅ แก้เป็น unsafe_allow_html
 
 def get_data():
     try:
