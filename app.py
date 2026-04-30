@@ -3,154 +3,98 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-# URL ของ Web App จาก Google Apps Script
 API_URL = "https://script.google.com/macros/s/AKfycbzqSVvrWItgNP2kCloot03ODDF70VCKxnOE0CSh20G7_K2JqmdLflZu-J4lOwPL6tom/exec"
 
 st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
-# --- Custom CSS (Modern & Dark Mode Support) ---
-st.markdown("""
-    <style>
-    .stMetric { padding: 15px; border-radius: 10px; border: 1px solid #444; }
-    thead th { background-color: #222 !important; color: white !important; }
-    </style>
-    """, unsafe_allow_html=True)
-
-def get_all_data():
+# ใช้การโหลดข้อมูลแบบ Cache เพื่อความรวดเร็ว
+@st.cache_data(ttl=30) # เก็บข้อมูลไว้ 30 วินาที ลดการดึง API บ่อย
+def fetch_data():
     try:
-        response = requests.get(API_URL)
+        response = requests.get(API_URL, timeout=10) # เพิ่ม timeout ป้องกันค้าง
         if response.status_code == 200:
             res = response.json()
-            # 1. จัดการข้อมูลงาน
             df = pd.DataFrame(res.get("tasks", []))
+            
+            # จัดการวันที่ให้ตรงกับ Sheets (ใช้ Plain Text เพื่อความเร็ว)
             if not df.empty and 'Deadline' in df.columns:
                 df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%y')
             
-            # 2. จัดการข้อมูลวิชา
             subjects = res.get("subjects", [])
-            if subjects and (subjects[0] == "Subject" or subjects[0] == "วิชา"):
+            if subjects and subjects[0] in ["Subject", "วิชา"]:
                 subjects = subjects[1:]
             
-            subjects = sorted([str(s).strip() for s in subjects if s])
-            return df, subjects
+            return df, sorted([str(s).strip() for s in subjects if s])
+    except:
         return pd.DataFrame(), []
-    except Exception as e:
-        st.error(f"การดึงข้อมูลผิดพลาด: {e}")
-        return pd.DataFrame(), []
+    return pd.DataFrame(), []
 
-def send_action(payload):
-    try:
-        requests.post(API_URL, json=payload)
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-# --- START UI ---
+# --- UI START ---
 st.title("🌞 Tawan Assignment Tracker")
 
-data, subjects_list = get_all_data()
+data, subjects_list = fetch_data()
 
 if not data.empty:
-    waiting_count = len(data[data['Status'] == 'Waiting'])
+    waiting_tasks = data[data['Status'].str.contains('Waiting', case=False, na=False)]
+    
     col_m1, col_m2 = st.columns([1, 2])
     with col_m1:
-        st.metric("งานที่ค้างอยู่", f"{waiting_count} รายการ")
+        st.metric("งานที่ค้างอยู่", f"{len(waiting_tasks)} รายการ")
     with col_m2:
-        filter_status = st.radio("มุมมองข้อมูล:", options=["⏳ Waiting Only", "✅ Completed Only", "🗃️ All Tasks"], horizontal=True)
+        filter_status = st.radio("มุมมอง:", options=["⏳ Waiting Only", "✅ Completed Only", "🗃️ All Tasks"], horizontal=True)
 
+    # กรองข้อมูล
     display_df = data.copy()
-    if filter_status == "⏳ Waiting Only":
-        display_df = display_df[display_df['Status'] == 'Waiting']
-    elif filter_status == "✅ Completed Only":
-        display_df = display_df[display_df['Status'] == 'Complete']
+    if "Waiting Only" in filter_status:
+        display_df = waiting_tasks
+    elif "Completed Only" in filter_status:
+        display_df = data[data['Status'].str.contains('Complete', case=False, na=False)]
 
-    st.subheader("📋 รายการงานปัจจุบัน")
-    
+    # แสดงผลตารางแบบ Minimal Style
     def style_status(val):
-        if val == 'Complete': 
-            return 'color: #28a745; font-weight: bold;'
-        elif val == 'Waiting': 
-            return 'color: #ffc107; font-weight: bold;'
+        v = str(val).lower()
+        if v == 'complete': return 'color: #28a745; font-weight: bold;'
+        if v == 'waiting': return 'color: #ffc107; font-weight: bold;'
         return ''
 
-    styled_df = display_df.style.map(style_status, subset=['Status'])
-    st.dataframe(styled_df, use_container_width=True, hide_index=True)
-else:
-    st.info("ยังไม่มีข้อมูลในระบบ หรือกำลังเชื่อมต่อข้อมูล...")
+    st.dataframe(display_df.style.map(style_status, subset=['Status']), use_container_width=True, hide_index=True)
 
 st.divider()
 
-# --- CRUD TABS ---
+# --- Tabs ---
 tab_add, tab_edit, tab_del = st.tabs(["➕ เพิ่มงาน", "📝 แก้ไขสถานะ", "🗑️ ลบรายการ"])
+
+def send_update(payload):
+    requests.post(API_URL, json=payload)
+    st.cache_data.clear() # ล้าง Cache เมื่อมีการแก้ไขข้อมูลเพื่อให้ข้อมูลใหม่แสดงทันที
+    st.rerun()
 
 with tab_add:
     with st.form("add_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
         with c1:
-            t = st.text_input("ชื่องาน", placeholder="ระบุชื่องาน หรือรายละเอียด")
-            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่พบรายชื่อวิชา --"])
+            t = st.text_input("ชื่องาน")
+            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"])
         with c2:
             d = st.date_input("กำหนดส่ง", datetime.now())
-        
-        if st.form_submit_button("บันทึกข้อมูล"):
-            if t and s and s != "-- ไม่พบรายชื่อวิชา --":
-                # ปรับ Default Status เป็น Waiting
-                send_action({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y"), "status": "Waiting"})
-                st.success(f"บันทึกงาน '{t}' สำเร็จ!")
-                st.rerun()
-            else:
-                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+        if st.form_submit_button("บันทึก"):
+            if t and s:
+                send_update({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y"), "status": "Waiting"})
 
 with tab_edit:
-    # กรองเฉพาะงานที่มีสถานะเป็น Waiting เท่านั้นสำหรับการแก้ไข
-    waiting_tasks = data[data['Status'] == 'Waiting']
-    
     if not waiting_tasks.empty:
-        edit_target = st.selectbox("เลือกงานที่ยังค้างอยู่เพื่อแก้ไข/ปิดงาน:", waiting_tasks['Task'].tolist(), key="edit_box")
+        edit_target = st.selectbox("แก้ไขงานค้าง:", waiting_tasks['Task'].tolist())
         row = waiting_tasks[waiting_tasks['Task'] == edit_target].iloc[0]
-        
         with st.form("edit_form"):
-            col_e1, col_e2 = st.columns(2)
-            with col_e1:
-                new_t = st.text_input("แก้ไขชื่องาน", value=row['Task'])
-                current_subject_idx = subjects_list.index(row['Subject']) if row['Subject'] in subjects_list else 0
-                new_s = st.selectbox("วิชา", options=subjects_list, index=current_subject_idx)
-            with col_e2:
-                try:
-                    curr_d = datetime.strptime(str(row['Deadline']), "%d/%m/%y")
-                except:
-                    curr_d = datetime.now()
-                new_d = st.date_input("แก้ไขวันส่ง", value=curr_d)
-                new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"], index=0)
-            
-            if st.form_submit_button("ยืนยันการแก้ไข"):
-                send_action({
-                    "action": "update", 
-                    "old_task": edit_target,
-                    "task": new_t, 
-                    "subject": new_s, 
-                    "deadline": new_d.strftime("%d/%m/%Y"),
-                    "status": new_st
-                })
-                st.success("อัปเดตข้อมูลเรียบร้อย!")
-                st.rerun()
+            new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"])
+            if st.form_submit_button("อัปเดต"):
+                send_update({"action": "update", "old_task": edit_target, "task": row['Task'], "subject": row['Subject'], "deadline": row['Deadline'], "status": new_st})
     else:
-        st.info("🎉 ไม่มีงานค้างในระบบให้แก้ไขแล้ว!")
+        st.info("ไม่มีงานค้างให้แก้ไข")
 
 with tab_del:
-    # กรองเฉพาะงานที่มีสถานะเป็น Waiting เท่านั้นสำหรับการลบ
-    delete_candidates = data[data['Status'] == 'Waiting']
-    
-    if not delete_candidates.empty:
-        st.warning("⚠️ ระวัง! การลบรายการที่ยังค้างอยู่อาจทำให้คุณพลาดกำหนดส่งได้")
-        del_target = st.selectbox(
-            "เลือกงานที่ยังค้างอยู่เพื่อลบถาวร:", 
-            delete_candidates['Task'].tolist(), 
-            key="del_box"
-        )
-        if st.button("🔥 ยืนยันการลบรายการนี้", type="primary"):
-            send_action({"action": "delete", "task": del_target})
-            st.success(f"ลบงาน '{del_target}' เรียบร้อยแล้ว")
-            st.rerun()
-    else:
-        st.info("✨ ไม่มีงานค้างในระบบให้ลบแล้ว (งานที่ Complete แล้วจะไม่แสดงในหน้านี้)")
-        
+    if not waiting_tasks.empty:
+        del_target = st.selectbox("ลบงานค้าง:", waiting_tasks['Task'].tolist())
+        if st.button("🔥 ยืนยันการลบ", type="primary"):
+            send_update({"action": "delete", "task": del_target})
+            
