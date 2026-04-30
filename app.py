@@ -28,7 +28,7 @@ def get_all_data():
                 df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%y')
             
             # 2. จัดการข้อมูลวิชา (ดึงจากก้อน subjects ที่ส่งมาจาก Apps Script)
-            subjects = res.get("subject", [])
+            subjects = res.get("subjects", [])
             # ลบหัวข้อคอลัมน์ "Subject" ออกถ้ามี
             if subjects and (subjects[0] == "Subject" or subjects[0] == "วิชา"):
                 subjects = subjects[1:]
