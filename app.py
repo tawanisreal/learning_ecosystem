@@ -49,7 +49,7 @@ def send_action(payload):
         st.error(f"Error: {e}")
 
 # --- START UI ---
-st.title("🎓 ICT Assignment Tracker")
+st.title("🌞 Tawan Assignment Tracker")
 
 # ดึงข้อมูลใหม่ทุกครั้งที่รัน
 data, subjects_list = get_all_data()
@@ -60,12 +60,12 @@ if not data.empty:
     with col_m1:
         st.metric("งานที่ค้างอยู่", f"{waiting_count} รายการ")
     with col_m2:
-        filter_status = st.radio("มุมมองข้อมูล:", options=["Waiting Only", "Completed Only", "All Tasks"], horizontal=True)
+        filter_status = st.radio("มุมมองข้อมูล:", options=["'ยังไม่เสร็จเท่านั้น'", "เสร็จแล้วเท่านั้น", "งานทั้งหมด"], horizontal=True)
 
     display_df = data.copy()
-    if filter_status == "Waiting Only":
+    if filter_status == "ยังไม่เสร็จเท่านั้น":
         display_df = display_df[display_df['Status'] == 'waiting']
-    elif filter_status == "Completed Only":
+    elif filter_status == "เสร็จแล้วเท่านั้น":
         display_df = display_df[display_df['Status'] == 'complete']
 
     st.subheader("📋 รายการงานปัจจุบัน")
