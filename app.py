@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-API_URL = "https://script.google.com/macros/s/AKfycbzr050WTPL898ERcPwGDNuiKM3BRcsMk8sYzqJVBMK4grJAvICnoFesL-ZiSeT4-xf6/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbzqSVvrWItgNP2kCloot03ODDF70VCKxnOE0CSh20G7_K2JqmdLflZu-J4lOwPL6tom/exec"
 
 st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
@@ -77,9 +77,19 @@ with tab_add:
             s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"])
         with c2:
             d = st.date_input("กำหนดส่ง", datetime.now())
+        # ในส่วน tab_add ของ app.py
         if st.form_submit_button("บันทึก"):
             if t and s:
-                send_update({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y"), "status": "Waiting"})
+                # ใส่เครื่องหมาย ' นำหน้าวันที่ก่อนส่งไปที่ API
+                plain_text_deadline = f"'{d.strftime('%d/%m/%Y')}"
+                
+                send_update({
+                    "action": "add", 
+                    "task": t, 
+                    "subject": s, 
+                    "deadline": plain_text_deadline, # ส่งค่าที่มี ' นำหน้า
+                    "status": "Waiting"
+                })
 
 with tab_edit:
     if not waiting_tasks.empty:
