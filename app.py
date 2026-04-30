@@ -8,7 +8,7 @@ API_URL = "https://script.google.com/macros/s/AKfycbzqSVvrWItgNP2kCloot03ODDF70V
 
 st.set_page_config(page_title="Tawan Assignment", layout="wide", page_icon="🌻")
 
-# --- Custom CSS (Modern & Dark Mode Support) ---
+# --- Custom CSS ---
 st.markdown("""
     <style>
     .stMetric { padding: 15px; border-radius: 10px; border: 1px solid #444; }
@@ -23,8 +23,12 @@ def get_all_data():
             res = response.json()
             # 1. จัดการข้อมูลงาน
             df = pd.DataFrame(res.get("tasks", []))
+            
             if not df.empty and 'Deadline' in df.columns:
-                df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%y')
+                # แก้ไขปัญหาเครื่องช้ากว่า 1 วัน: 
+                # แปลงเป็น datetime โดยระบุ format ให้ชัดเจน และไม่ยุ่งกับ Timezone
+                df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce')
+                df['Deadline'] = df['Deadline'].dt.strftime('%d/%m/%y')
             
             # 2. จัดการข้อมูลวิชา
             subjects = res.get("subjects", [])
@@ -50,6 +54,7 @@ st.title("🌞 Tawan Assignment Tracker")
 data, subjects_list = get_all_data()
 
 if not data.empty:
+    # กรองเอาเฉพาะ Waiting เพื่อโชว์ใน Metric
     waiting_count = len(data[data['Status'] == 'Waiting'])
     col_m1, col_m2 = st.columns([1, 2])
     with col_m1:
@@ -93,15 +98,19 @@ with tab_add:
         
         if st.form_submit_button("บันทึกข้อมูล"):
             if t and s and s != "-- ไม่พบรายชื่อวิชา --":
-                # ปรับ Default Status เป็น Waiting
-                send_action({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y"), "status": "Waiting"})
+                send_action({
+                    "action": "add", 
+                    "task": t, 
+                    "subject": s, 
+                    "deadline": d.strftime("%d/%m/%Y"), 
+                    "status": "Waiting"
+                })
                 st.success(f"บันทึกงาน '{t}' สำเร็จ!")
                 st.rerun()
             else:
                 st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
 
 with tab_edit:
-    # กรองเฉพาะงานที่มีสถานะเป็น Waiting เท่านั้นสำหรับการแก้ไข
     waiting_tasks = data[data['Status'] == 'Waiting']
     
     if not waiting_tasks.empty:
@@ -116,6 +125,7 @@ with tab_edit:
                 new_s = st.selectbox("วิชา", options=subjects_list, index=current_subject_idx)
             with col_e2:
                 try:
+                    # แปลงวันที่จากหน้าเว็บกลับไปเป็น Date Object เพื่อให้ Date Input แสดงผลถูก
                     curr_d = datetime.strptime(str(row['Deadline']), "%d/%m/%y")
                 except:
                     curr_d = datetime.now()
@@ -137,19 +147,15 @@ with tab_edit:
         st.info("🎉 ไม่มีงานค้างในระบบให้แก้ไขแล้ว!")
 
 with tab_del:
-    # กรองเฉพาะงานที่มีสถานะเป็น Waiting เท่านั้นสำหรับการลบ
+    # กรองเฉพาะงาน Waiting สำหรับการลบตามที่คุณต้องการ
     delete_candidates = data[data['Status'] == 'Waiting']
     
     if not delete_candidates.empty:
-        st.warning("⚠️ ระวัง! การลบรายการที่ยังค้างอยู่อาจทำให้คุณพลาดกำหนดส่งได้")
-        del_target = st.selectbox(
-            "เลือกงานที่ยังค้างอยู่เพื่อลบถาวร:", 
-            delete_candidates['Task'].tolist(), 
-            key="del_box"
-        )
+        st.warning("ระวัง! การลบรายการที่ยังค้างอยู่อาจทำให้พลาดกำหนดส่ง")
+        del_target = st.selectbox("เลือกงานที่ยังค้างอยู่เพื่อลบ:", delete_candidates['Task'].tolist(), key="del_box")
         if st.button("🔥 ยืนยันการลบรายการนี้", type="primary"):
             send_action({"action": "delete", "task": del_target})
-            st.success(f"ลบงาน '{del_target}' เรียบร้อยแล้ว")
             st.rerun()
     else:
-        st.info("✨ ไม่มีงานค้างในระบบให้ลบแล้ว (งานที่ Complete แล้วจะไม่แสดงในหน้านี้)")
+        st.info("✨ ไม่มีงานค้างในระบบให้ลบ")
+        
