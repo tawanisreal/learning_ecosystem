@@ -12,9 +12,17 @@ def get_data():
     try:
         response = requests.get(API_URL)
         if response.status_code == 200:
-            return pd.DataFrame(response.json())
-        return pd.DataFrame()
-    except:
+            raw_json = response.json()
+            if raw_json:
+                return pd.DataFrame(raw_json)
+            else:
+                st.warning("⚠️ ดึงข้อมูลได้สำเร็จแต่ไม่มีข้อมูลใน Sheet (แผ่นงานว่างเปล่า)")
+                return pd.DataFrame()
+        else:
+            st.error(f"❌ ดึงข้อมูลไม่สำเร็จ Status: {response.status_code}")
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ เกิดข้อผิดพลาด: {e}")
         return pd.DataFrame()
 
 def send_action(payload):
