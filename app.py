@@ -17,19 +17,26 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-def get_data():
+def get_all_data():
     try:
         response = requests.get(API_URL)
         if response.status_code == 200:
-            raw_json = response.json()
-            if not raw_json: return pd.DataFrame()
-            df = pd.DataFrame(raw_json)
-            if 'Deadline' in df.columns:
+            res = response.json()
+            # แยกข้อมูลงานออกมาเป็น DataFrame
+            df = pd.DataFrame(res.get("tasks", []))
+            if not df.empty and 'Deadline' in df.columns:
                 df['Deadline'] = pd.to_datetime(df['Deadline'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%y')
-            return df
-        return pd.DataFrame()
+            
+            # ดึงรายชื่อวิชาจากแผ่นงาน Subject
+            subjects = res.get("subjects", [])
+            # ตัดหัวตารางออกถ้าใน Sheet "Subject" มีหัวข้อ (เช่น แถวแรกชื่อ 'รายชื่อวิชา')
+            if subjects and subjects[0] == "Subject": 
+                subjects = subjects[1:]
+                
+            return df, subjects
+        return pd.DataFrame(), []
     except:
-        return pd.DataFrame()
+        return pd.DataFrame(), []
 
 def send_action(payload):
     try:
@@ -40,7 +47,7 @@ def send_action(payload):
 # --- START UI ---
 st.title("🎓 ICT Assignment Tracker")
 
-data = get_data()
+data, subjects_list = get_all_data()
 
 # ดึงรายชื่อวิชาที่มีอยู่แล้วมาทำ Dropdown
 subjects_list = []
