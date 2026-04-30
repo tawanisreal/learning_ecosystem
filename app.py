@@ -3,84 +3,133 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-# URL ของ Web App จาก Google Apps Script
+# URL ของ Web App จาก Google Apps Script (ใช้ตัวเดิมของคุณ)
 API_URL = "https://script.google.com/macros/s/AKfycbzCrQzdQp7WMEZ1OTPOSf2mbJJjz25vKF7pwv4BebL3I2Fzcu7N2bqvXz77wY2m7PHv/exec"
 
-st.set_page_config(page_title="Assignment Tracker", layout="wide")
+st.set_page_config(page_title="ICT Assignment Pro", layout="wide", page_icon="🎓")
+
+# Custom CSS เพื่อให้เข้ากับสไตล์ ICT Classic ที่คุณชอบ
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; }
+    .stDataFrame { border-radius: 10px; overflow: hidden; }
+    </style>
+    """, unsafe_allow_stdio=True)
 
 def get_data():
     try:
         response = requests.get(API_URL)
         if response.status_code == 200:
             raw_json = response.json()
-            if raw_json:
-                return pd.DataFrame(raw_json)
-            else:
-                st.warning("⚠️ ดึงข้อมูลได้สำเร็จแต่ไม่มีข้อมูลใน Sheet (แผ่นงานว่างเปล่า)")
-                return pd.DataFrame()
-        else:
-            st.error(f"❌ ดึงข้อมูลไม่สำเร็จ Status: {response.status_code}")
-            return pd.DataFrame()
-    except Exception as e:
-        st.error(f"❌ เกิดข้อผิดพลาด: {e}")
+            return pd.DataFrame(raw_json) if raw_json else pd.DataFrame()
+        return pd.DataFrame()
+    except:
         return pd.DataFrame()
 
 def send_action(payload):
     try:
         requests.post(API_URL, json=payload)
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
-st.title("🎓 University Assignment Tracker")
+# --- HEADER ---
+st.title("🎓 ICT Assignment Tracker")
+st.write("จัดการงานค้างและกำหนดส่งได้ง่ายๆ ผ่าน LINE OA")
 
 data = get_data()
 
-# --- 1. ส่วนแสดงผลตารางงาน ---
-st.subheader("📋 รายการงานปัจจุบัน")
+# --- DASHBOARD & FILTER ---
 if not data.empty:
-    # แสดงตารางแบบสวยงาม
-    st.dataframe(data, use_container_width=True, hide_index=True)
+    # คัดกรองข้อมูลเบื้องต้น
+    waiting_count = len(data[data['Status'] == 'waiting'])
+    
+    col_m1, col_m2, col_m3 = st.columns([1, 1, 2])
+    with col_m1:
+        st.metric("งานที่ค้างอยู่", f"{waiting_count} งาน", delta_color="inverse")
+    
+    with col_m3:
+        # ฟิลเตอร์สถานะ (เริ่มต้นที่ 'Waiting Only')
+        filter_status = st.segmented_control(
+            "แสดงสถานะ:", 
+            options=["Waiting Only", "Completed Only", "All Tasks"], 
+            default="Waiting Only"
+        )
+
+    # ค้นหาด้วย Keyword
+    search_query = st.text_input("🔍 ค้นหาวิชาหรือชื่องาน...", placeholder="พิมพ์ชื่อวิชา เช่น Networking...")
+
+    # ประมวลผลข้อมูลตาม Filter
+    display_df = data.copy()
+    if filter_status == "Waiting Only":
+        display_df = display_df[display_df['Status'] == 'waiting']
+    elif filter_status == "Completed Only":
+        display_df = display_df[display_df['Status'] == 'complete']
+    
+    if search_query:
+        display_df = display_df[
+            display_df['Task'].str.contains(search_query, case=False, na=False) | 
+            display_df['Subject'].str.contains(search_query, case=False, na=False)
+        ]
+
+    # --- 1. ส่วนแสดงผลตารางงาน ---
+    st.subheader("📋 รายการงาน")
+    if not display_df.empty:
+        st.dataframe(
+            display_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Status": st.column_config.SelectboxColumn("Status", options=["waiting", "complete"], required=True),
+                "Deadline": st.column_config.TextColumn("Deadline (DD/MM/YYYY)")
+            }
+        )
+    else:
+        st.info("ไม่พบรายการงานที่ตรงกับเงื่อนไข")
 else:
-    st.info("ยังไม่มีงานในระบบ")
+    st.info("ยังไม่มีข้อมูลในระบบ เริ่มเพิ่มงานใหม่ได้ที่แท็บด้านล่าง")
 
 st.divider()
 
-# --- 2. ส่วนการจัดการข้อมูล (Add, Edit, Delete) ---
-# ใช้ Tabs เพื่อประหยัดพื้นที่บนหน้าจอมือถือ
-tab1, tab2, tab3 = st.tabs(["➕ เพิ่มงานใหม่", "📝 แก้ไขงาน", "🗑️ ลบงาน"])
+# --- 2. MANAGEMENT TABS (CRUD) ---
+tab_add, tab_edit, tab_del = st.tabs(["➕ เพิ่มงานใหม่", "📝 แก้ไขรายละเอียด", "🗑️ ลบรายการ"])
 
-with tab1:
+with tab_add:
     with st.form("add_form", clear_on_submit=True):
-        t = st.text_input("ชื่องาน (Task)")
-        s = st.text_input("วิชา (Subject)")
-        d = st.date_input("กำหนดส่ง", datetime.now(), key="add_date")
-        if st.form_submit_button("บันทึกงานใหม่"):
+        c1, c2 = st.columns(2)
+        with c1:
+            t = st.text_input("ชื่องาน (Task)", placeholder="เช่น ทำแล็บ OSI Model")
+            s = st.text_input("วิชา (Subject)", placeholder="เช่น Computer Network")
+        with c2:
+            d = st.date_input("กำหนดส่ง", datetime.now())
+        
+        if st.form_submit_button("➕ บันทึกงานเข้า Sheet"):
             if t and s:
                 send_action({"action": "add", "task": t, "subject": s, "deadline": d.strftime("%d/%m/%Y")})
-                st.success(f"เพิ่มงาน '{t}' สำเร็จ!")
+                st.success(f"เพิ่ม '{t}' เข้าสู่ระบบแล้ว!")
                 st.rerun()
             else:
-                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.warning("กรุณากรอกชื่อและวิชาให้ครบถ้วน")
 
-with tab2:
+with tab_edit:
     if not data.empty:
-        edit_target = st.selectbox("เลือกงานที่ต้องการแก้ไข", data['Task'].tolist(), key="edit_sel")
+        edit_target = st.selectbox("เลือกงานที่จะแก้ไข:", data['Task'].tolist(), key="edit_box")
         row = data[data['Task'] == edit_target].iloc[0]
         
         with st.form("edit_form"):
-            new_t = st.text_input("ชื่อภารกิจ", value=row['Task'])
-            new_s = st.text_input("วิชา", value=row['Subject'])
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                new_t = st.text_input("แก้ไขชื่อภารกิจ", value=row['Task'])
+                new_s = st.text_input("แก้ไขวิชา", value=row['Subject'])
+            with col_e2:
+                try:
+                    curr_d = datetime.strptime(str(row['Deadline']), "%d/%m/%Y")
+                except:
+                    curr_d = datetime.now()
+                new_d = st.date_input("เปลี่ยนกำหนดส่ง", value=curr_d)
+                new_st = st.selectbox("สถานะการทำงาน", ["waiting", "complete"], index=0 if row['Status'] == 'waiting' else 1)
             
-            # แปลงวันที่เดิมกลับเป็น Date Object
-            try:
-                curr_d = datetime.strptime(str(row['Deadline']), "%d/%m/%Y")
-            except:
-                curr_d = datetime.now()
-            
-            new_d = st.date_input("กำหนดส่งใหม่", value=curr_d)
-            new_st = st.selectbox("สถานะ", ["waiting", "complete"], index=0 if row['Status'] == 'waiting' else 1)
-            
-            if st.form_submit_button("อัปเดตข้อมูล"):
+            if st.form_submit_button("💾 บันทึกการเปลี่ยนแปลง"):
                 send_action({
                     "action": "update", 
                     "old_task": edit_target,
@@ -89,17 +138,16 @@ with tab2:
                     "deadline": new_d.strftime("%d/%m/%Y"),
                     "status": new_st
                 })
-                st.success("แก้ไขข้อมูลเรียบร้อย!")
+                st.balloons()
                 st.rerun()
     else:
         st.write("ไม่มีข้อมูลให้แก้ไข")
 
-with tab3:
+with tab_del:
     if not data.empty:
-        del_target = st.selectbox("เลือกงานที่จะลบ", data['Task'].tolist(), key="del_sel")
-        if st.button("ยืนยันการลบ", type="primary"):
+        st.warning("ระวัง! การลบข้อมูลจะไม่สามารถกู้คืนได้")
+        del_target = st.selectbox("เลือกงานที่จะลบถาวร:", data['Task'].tolist(), key="del_box")
+        if st.button("🔥 ยืนยันการลบรายการ", type="primary"):
             send_action({"action": "delete", "task": del_target})
-            st.success("ลบงานเรียบร้อย!")
+            st.success("ลบข้อมูลสำเร็จ")
             st.rerun()
-    else:
-        st.write("ไม่มีข้อมูลให้ลบ")
