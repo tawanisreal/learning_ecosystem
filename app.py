@@ -3,11 +3,17 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime
+import json  # เพิ่มการนำเข้า json
 
-# --- 1. ตั้งค่าการเชื่อมต่อ ---
+# --- 1. ตั้งค่าการเชื่อมต่อ (เปลี่ยนวิธีดึงข้อมูลกุญแจ) ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+
+# ดึงข้อมูลจาก st.secrets แทนการอ่านไฟล์ตรงๆ
+service_account_info = dict(st.secrets["gcp_service_account"])
+creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
+
+# เปิดไฟล์ Sheet (ตรวจสอบชื่อไฟล์ให้ตรงเป๊ะ)
 sheet = client.open("My_Assignments").sheet1
 
 st.set_page_config(page_title="Assignment Tracker", layout="wide")
