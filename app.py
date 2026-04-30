@@ -55,26 +55,26 @@ st.title("🌞 Tawan Assignment Tracker")
 data, subjects_list = get_all_data()
 
 if not data.empty:
-    waiting_count = len(data[data['Status'] == 'waiting'])
+    waiting_count = len(data[data['Status'] == 'Waiting'])
     col_m1, col_m2 = st.columns([1, 2])
     with col_m1:
         st.metric("งานที่ค้างอยู่", f"{waiting_count} รายการ")
     with col_m2:
-        filter_status = st.radio("มุมมองข้อมูล:", options=["'ยังไม่เสร็จเท่านั้น'", "เสร็จแล้วเท่านั้น", "งานทั้งหมด"], horizontal=True)
+        filter_status = st.radio("มุมมองข้อมูล:", options=["Waiting Only", "Completed Only", "All Tasks"], horizontal=True)
 
     display_df = data.copy()
-    if filter_status == "ยังไม่เสร็จเท่านั้น":
-        display_df = display_df[display_df['Status'] == 'waiting']
-    elif filter_status == "เสร็จแล้วเท่านั้น":
-        display_df = display_df[display_df['Status'] == 'complete']
+    if filter_status == "Waiting Only":
+        display_df = display_df[display_df['Status'] == 'Waiting']
+    elif filter_status == "Completed Only":
+        display_df = display_df[display_df['Status'] == 'Complete']
 
     st.subheader("📋 รายการงานปัจจุบัน")
     
     # ฟังก์ชันกำหนดสีตัวอักษรแทนการใช้พื้นหลัง (แก้ปัญหา Dark Mode)
     def style_status(val):
-        if val == 'complete': 
+        if val == 'Complete': 
             return 'color: #28a745; font-weight: bold;' # สีเขียว (ตัวหนังสือ)
-        elif val == 'waiting': 
+        elif val == 'Waiting': 
             return 'color: #ffc107; font-weight: bold;' # สีเหลือง (ตัวหนังสือ)
         return ''
 
@@ -125,7 +125,7 @@ with tab_edit:
                 except:
                     curr_d = datetime.now()
                 new_d = st.date_input("แก้ไขวันส่ง", value=curr_d)
-                new_st = st.selectbox("สถานะ", ["waiting", "complete"], index=0 if row['Status'] == 'waiting' else 1)
+                new_st = st.selectbox("สถานะ", ["Waiting", "Complete"], index=0 if row['Status'] == 'Waiting' else 1)
             
             if st.form_submit_button("ยืนยันการแก้ไข"):
                 send_action({
