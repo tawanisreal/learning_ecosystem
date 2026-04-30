@@ -137,8 +137,19 @@ with tab_edit:
         st.info("🎉 ไม่มีงานค้างในระบบให้แก้ไขแล้ว!")
 
 with tab_del:
-    if not data.empty:
-        del_target = st.selectbox("เลือกงานที่จะลบ:", data['Task'].tolist(), key="del_box")
-        if st.button("🔥 ลบรายการนี้ถาวร", type="primary"):
+    # กรองเฉพาะงานที่มีสถานะเป็น Waiting เท่านั้นสำหรับการลบ
+    delete_candidates = data[data['Status'] == 'Waiting']
+    
+    if not delete_candidates.empty:
+        st.warning("⚠️ ระวัง! การลบรายการที่ยังค้างอยู่อาจทำให้คุณพลาดกำหนดส่งได้")
+        del_target = st.selectbox(
+            "เลือกงานที่ยังค้างอยู่เพื่อลบถาวร:", 
+            delete_candidates['Task'].tolist(), 
+            key="del_box"
+        )
+        if st.button("🔥 ยืนยันการลบรายการนี้", type="primary"):
             send_action({"action": "delete", "task": del_target})
+            st.success(f"ลบงาน '{del_target}' เรียบร้อยแล้ว")
             st.rerun()
+    else:
+        st.info("✨ ไม่มีงานค้างในระบบให้ลบแล้ว (งานที่ Complete แล้วจะไม่แสดงในหน้านี้)")
