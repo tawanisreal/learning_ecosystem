@@ -9,8 +9,19 @@ API_URL = "https://script.google.com/macros/s/AKfycbwRMQZI8gTCvlQcHNgn-VDC9qma16
 st.set_page_config(page_title="Assignment Tracker", layout="wide")
 
 def get_data():
-    response = requests.get(API_URL)
-    return pd.DataFrame(response.json())
+    try:
+        response = requests.get(API_URL)
+        # ตรวจสอบว่า Status Code คือ 200 (OK) หรือไม่
+        if response.status_code == 200:
+            return pd.DataFrame(response.json())
+        else:
+            st.error(f"Google ส่งข้อผิดพลาดกลับมา: {response.status_code}")
+            st.write(response.text) # ดูเนื้อหาที่ Google ส่งมา
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"เกิดปัญหาในการอ่าน JSON: {e}")
+        st.write("เนื้อหาที่ได้รับ:", response.text)
+        return pd.DataFrame()
 
 def send_action(payload):
     requests.post(API_URL, json=payload)
