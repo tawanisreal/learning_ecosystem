@@ -103,8 +103,26 @@ with tab_edit:
         st.info("ไม่มีงานค้างให้แก้ไข")
 
 with tab_del:
-    if not waiting_tasks.empty:
-        del_target = st.selectbox("ลบงานค้าง:", waiting_tasks['Task'].tolist())
-        if st.button("🔥 ยืนยันการลบ", type="primary"):
-            send_update({"action": "delete", "task": del_target})
+    # กรองเฉพาะงานที่มีสถานะเป็น Waiting สำหรับการลบ
+    delete_candidates = data[data['Status'].str.contains('Waiting', case=False, na=False)]
+    
+    if not delete_candidates.empty:
+        # กำหนดค่า default เป็น None และใส่ placeholder เพื่อให้ดูเหมือนยังไม่ได้เลือก
+        del_target = st.selectbox(
+            "ลบงานค้าง:",
+            options=delete_candidates['Task'].tolist(),
+            index=None,
+            placeholder="--- เลือกงานที่ต้องการลบ ---",
+            key="del_box_new"
+        )
+        
+        # ตรวจสอบว่ามีการเลือกงานแล้วจริงๆ ถึงจะกดปุ่มลบได้
+        if del_target:
+            if st.button("🔥 ยืนยันการลบ", type="primary"):
+                send_update({"action": "delete", "task": del_target})
+                # ระบบจะ rerun อัตโนมัติจากฟังก์ชัน send_update ที่เราเขียนไว้
+        else:
+            st.info("กรุณาเลือกรายการงานด้านบนเพื่อดำเนินการลบ")
+    else:
+        st.info("✨ ไม่มีงานค้างในระบบให้ลบ")
             
