@@ -93,12 +93,39 @@ with tab_add:
 
 with tab_edit:
     if not waiting_tasks.empty:
-        edit_target = st.selectbox("แก้ไขงานค้าง:", options=waiting_tasks['Task'].tolist(), index=None, placeholder="--- เลือกงานที่ต้องการลบ ---", key="edit_box_new")
-        row = waiting_tasks[waiting_tasks['Task'] == edit_target].iloc[0]
-        with st.form("edit_form"):
-            new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"])
-            if st.form_submit_button("อัปเดต"):
-                send_update({"action": "update", "old_task": edit_target, "task": row['Task'], "subject": row['Subject'], "deadline": row['Deadline'], "status": new_st})
+        # ดึงรายชื่อจากคอลัมน์ Task มาทำเป็น list
+        task_options = waiting_tasks['Task'].tolist()
+        
+        # ปรับ index=None เพื่อให้เริ่มต้นเป็นค่าว่าง (Placeholder)
+        edit_target = st.selectbox(
+            "แก้ไขงานค้าง:", 
+            options=task_options,
+            index=None, 
+            placeholder="--- กรุณาเลือกงานที่ต้องการแก้ไข ---"
+        )
+        
+        # ตรวจสอบว่ามีการเลือกงานแล้วจริงๆ (ไม่ใช่ค่า None)
+        if edit_target:
+            row = waiting_tasks[waiting_tasks['Task'] == edit_target].iloc[0]
+            with st.form("edit_form"):
+                # แสดงรายละเอียดงานที่กำลังแก้ไขเพื่อให้แน่ใจ
+                st.write(f"กำลังแก้ไขงาน: **{edit_target}**")
+                
+                # กำหนดค่า default ของสถานะตามข้อมูลจริงในแถวนั้น
+                current_status = "Waiting" if row['Status'] == "Waiting" else "Complete"
+                new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"], index=["Waiting", "Complete"].index(current_status))
+                
+                if st.form_submit_button("อัปเดต"):
+                    send_update({
+                        "action": "update", 
+                        "old_task": edit_target, 
+                        "task": row['Task'], 
+                        "subject": row['Subject'], 
+                        "deadline": row['Deadline'], 
+                        "status": new_st
+                    })
+                    st.success(f"อัปเดตสถานะงาน '{edit_target}' เรียบร้อย!")
+                    st.rerun() # สั่งให้แอปรีโหลดข้อมูลใหม่หลังจากอัปเดต
     else:
         st.info("ไม่มีงานค้างให้แก้ไข")
 
