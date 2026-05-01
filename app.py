@@ -148,8 +148,6 @@ with tab_del:
             if st.button("🔥 ยืนยันการลบ", type="primary"):
                 send_update({"action": "delete", "task": del_target})
                 # ระบบจะ rerun อัตโนมัติจากฟังก์ชัน send_update ที่เราเขียนไว้
-        else:
-            st.info("กรุณาเลือกรายการงานด้านบนเพื่อดำเนินการลบ")
     else:
         st.info("✨ ไม่มีงานค้างในระบบให้ลบ")
             
