@@ -93,7 +93,7 @@ with tab_add:
 
 with tab_edit:
     if not waiting_tasks.empty:
-        edit_target = st.selectbox("แก้ไขงานค้าง:", waiting_tasks['Task'].tolist(), index=None)
+        edit_target = st.selectbox("แก้ไขงานค้าง:", waiting_tasks['Task'].tolist())
         row = waiting_tasks[waiting_tasks['Task'] == edit_target].iloc[0]
         with st.form("edit_form"):
             new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"])
