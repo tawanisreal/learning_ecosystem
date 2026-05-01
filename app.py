@@ -74,7 +74,7 @@ with tab_add:
         c1, c2 = st.columns(2)
         with c1:
             t = st.text_input("ชื่องาน")
-            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"], index=None)
+            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"], index=None, placeholder="--- เลือวิชา ---",)
         with c2:
             d = st.date_input("กำหนดส่ง", datetime.now())
         # ในส่วน tab_add ของ app.py
