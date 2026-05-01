@@ -74,7 +74,7 @@ with tab_add:
         c1, c2 = st.columns(2)
         with c1:
             t = st.text_input("ชื่องาน")
-            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"])
+            s = st.selectbox("เลือกวิชา", options=subjects_list if subjects_list else ["-- ไม่มีวิชา --"], index=None)
         with c2:
             d = st.date_input("กำหนดส่ง", datetime.now())
         # ในส่วน tab_add ของ app.py
@@ -93,7 +93,7 @@ with tab_add:
 
 with tab_edit:
     if not waiting_tasks.empty:
-        edit_target = st.selectbox("แก้ไขงานค้าง:", waiting_tasks['Task'].tolist())
+        edit_target = st.selectbox("แก้ไขงานค้าง:", waiting_tasks['Task'].tolist(), index=None,)
         row = waiting_tasks[waiting_tasks['Task'] == edit_target].iloc[0]
         with st.form("edit_form"):
             new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"])
