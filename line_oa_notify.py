@@ -1,5 +1,7 @@
+import os
+import json
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
@@ -7,18 +9,21 @@ from linebot.v3.messaging import (
     PushMessageRequest,
     TextMessage
 )
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# --- 1. ตั้งค่า Google Sheets ---
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+# รูปแบบใหม่ที่ใช้ google-auth (ตามที่คุยกันก่อนหน้า)
+google_json_str = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
+creds_info = json.loads(google_json_str)
+scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+
+# บรรทัดนี้สำคัญมาก ต้องเปลี่ยนเป็น Credentials.from_service_account_info
+creds = Credentials.from_service_account_info(creds_info, scopes=scope)
 client = gspread.authorize(creds)
 sheet = client.open("My_Assignments").sheet1
 
 # --- 2. ตั้งค่า LINE Messaging API ---
-CHANNEL_ACCESS_TOKEN = 'GbmZbSXVxQcqBhL1TcaZo4dB82lrJhS0JK4icaLcwlhDsILhKKpRwrqL3GHPAHojAAonnvVQCNBARXz4GrteFk9XXYBl5GC5LzJlGQMRHptIKrMQOFDsqPaIzcVDzS17QJ4A8xKAtLPKyHvXBiORLAdB04t89/1O/w1cDnyilFU='
-USER_ID = 'Ufa1d80e239eff8c82d46f55ac2488e1c' # ดูได้จากหน้า Basic Settings ใน LINE Developers
-
+CHANNEL_ACCESS_TOKEN = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
+USER_ID = os.environ.get('LINE_USER_ID')
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 
 def send_line_push(message_text):
@@ -36,35 +41,43 @@ def send_line_push(message_text):
 
 # --- 3. ฟังก์ชันเช็กงานและแจ้งเตือน ---
 def check_assignments_and_notify():
+    # ดึงข้อมูลทั้งหมด
     all_tasks = sheet.get_all_records()
-    today = datetime.now()
+    today = datetime.now().date() # ใช้เฉพาะวันที่เพื่อการเปรียบเทียบที่แม่นยำ
     notification_list = []
 
     print(f"🔍 เริ่มตรวจสอบงาน... (วันนี้คือ: {today.strftime('%d/%m/%Y')})")
 
     for task in all_tasks:
-        status = str(task.get('Status')).lower()
-        # เช็กงานที่สถานะไม่ใช่ 'done' หรือ 'complete'
-        if status not in ['done', 'complete']:
+        # ดึงสถานะและลบช่องว่างทับศัพท์ตัวเล็กใหญ่
+        status = str(task.get('Status', '')).strip()
+        
+        # เช็กเฉพาะงานที่ยังไม่เสร็จ (ไม่ใช่ 'Complete')
+        if status != 'Complete':
             try:
-                # ปรับให้รองรับรูปแบบ วัน/เดือน/ปี (2026) ตามในรูปของคุณ
-                deadline = datetime.strptime(str(task['Deadline']), '%d/%m/%Y')
+                # จัดการวันที่ ลบเครื่องหมาย ' ออกถ้ามี
+                deadline_str = str(task.get('Deadline', '')).replace("'", "").strip()
+                if not deadline_str: continue
                 
-                # เช็กว่างานจะถึงกำหนดในอีก 3 วัน (ปรับให้กว้างขึ้นเพื่อทดสอบ)
-                if today <= deadline <= today + timedelta(days=3):
-                    diff = (deadline - today).days + 1
-                    notification_list.append(f"📌 {task['Task']}\n📅 ส่งใน: {diff} วัน ({task['Deadline']})")
-                    print(f"✅ พบงานใกล้กำหนด: {task['Task']}")
-            except ValueError:
-                print(f"⚠️ รูปแบบวันที่ผิดพลาดในงาน: {task['Task']} (ค่าที่พบ: {task['Deadline']})")
+                deadline_date = datetime.strptime(deadline_str, '%d/%m/%Y').date()
+                
+                # ตรรกะการแจ้งเตือน
+                if deadline_date == today:
+                    notification_list.append(f"📌 {task['Task']}\n⚠️ ต้องส่งภายในวันนี้! 💀")
+                elif deadline_date > today:
+                    diff = (deadline_date - today).days
+                    # แจ้งเตือนถ้างงานส่งภายใน 3 วัน หรือตามความเหมาะสม
+                    notification_list.append(f"📌 {task['Task']}\n📅 ส่งในอีก {diff} วัน ({deadline_str})")
+                    
+            except ValueError as e:
+                print(f"⚠️ ข้ามงาน {task.get('Task')}: รูปแบบวันที่ผิด ({task.get('Deadline')})")
                 continue
 
     if notification_list:
-        summary_message = "📢 แจ้งเตือนงานใกล้กำหนดส่ง!\n\n" + "\n\n".join(notification_list)
+        summary_message = "📢 Tawan Assignment Tracker\nแจ้งเตือนงานใกล้กำหนดส่ง!\n\n" + "\n\n".join(notification_list)
         send_line_push(summary_message)
     else:
         print("💡 ไม่มีงานที่ตรงตามเงื่อนไขการแจ้งเตือน")
 
-# รันระบบ
 if __name__ == "__main__":
     check_assignments_and_notify()
