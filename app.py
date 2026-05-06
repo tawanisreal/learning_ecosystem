@@ -119,9 +119,9 @@ with tab_edit:
                     send_update({
                         "action": "update", 
                         "old_task": edit_target, 
-                        "task": row['Task'], 
-                        "subject": row['Subject'], 
-                        "deadline": row['Deadline'], 
+                        # "task": row['Task'], 
+                        # "subject": row['Subject'], 
+                        # "deadline": row['Deadline'], 
                         "status": new_st
                     })
                     st.success(f"อัปเดตสถานะงาน '{edit_target}' เรียบร้อย!")
