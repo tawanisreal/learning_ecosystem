@@ -121,7 +121,7 @@ with tab_edit:
                         "old_task": edit_target, 
                         "task": row['Task'], 
                         "subject": row['Subject'], 
-                        # "deadline": row['Deadline'], 
+                        "deadline": row['Deadline'], 
                         "status": new_st
                     })
                     st.success(f"อัปเดตสถานะงาน '{edit_target}' เรียบร้อย!")
