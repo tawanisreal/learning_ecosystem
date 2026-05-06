@@ -116,12 +116,14 @@ with tab_edit:
                 new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"], index=["Waiting", "Complete"].index(current_status))
                 
                 if st.form_submit_button("อัปเดต"):
+                    plain_text_deadline = f"'{row['Deadline']}"
+
                     send_update({
                         "action": "update", 
                         "old_task": edit_target, 
                         "task": row['Task'], 
                         "subject": row['Subject'], 
-                        "deadline": row['Deadline'], 
+                        "deadline": plain_text_deadline, 
                         "status": new_st
                     })
                     st.success(f"อัปเดตสถานะงาน '{edit_target}' เรียบร้อย!")
