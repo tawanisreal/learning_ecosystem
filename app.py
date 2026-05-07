@@ -116,18 +116,30 @@ with tab_edit:
                 new_st = st.selectbox("เปลี่ยนสถานะเป็น", ["Waiting", "Complete"], index=["Waiting", "Complete"].index(current_status))
                 
                 if st.form_submit_button("อัปเดต"):
-                    plain_text_deadline = f"'{row['Deadline']}"
+                    # 1. ตรวจสอบและแปลงค่าวันที่ให้เป็น string format dd/mm/yyyy
+                    target_date = row['Deadline']
+                    
+                    # ถ้าเป็น object วันที่ (datetime) ให้ใช้ strftime
+                    if hasattr(target_date, 'strftime'):
+                        formatted_deadline = target_date.strftime('%d/%m/%Y')
+                    else:
+                        # ถ้าเป็น string อยู่แล้ว แต่ต้องการความชัวร์ หรือจัดการผ่าน pandas
+                        import pandas as pd
+                        formatted_deadline = pd.to_datetime(target_date).strftime('%d/%m/%Y')
+
+                    # 2. ใส่ single quote (') ข้างหน้าเพื่อป้องกัน Google Sheets แปลงกลับเป็น format อื่นอัตโนมัติ
+                    plain_text_deadline = f"'{formatted_deadline}"
 
                     send_update({
                         "action": "update", 
                         "old_task": edit_target, 
                         "task": row['Task'], 
                         "subject": row['Subject'], 
-                        "deadline": plain_text_deadline, 
+                        "deadline": plain_text_deadline, # ส่งค่าที่ format แล้วไป
                         "status": new_st
                     })
                     st.success(f"อัปเดตสถานะงาน '{edit_target}' เรียบร้อย!")
-                    st.rerun() # สั่งให้แอปรีโหลดข้อมูลใหม่หลังจากอัปเดต
+                    st.rerun()
     else:
         st.info("ไม่มีงานค้างให้แก้ไข")
 
